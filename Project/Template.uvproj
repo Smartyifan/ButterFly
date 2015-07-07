@@ -441,6 +441,16 @@
               <FileType>1</FileType>
               <FilePath>..\Hardware\KEY\key.c</FilePath>
             </File>
+            <File>
+              <FileName>ks103.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Hardware\KS103\ks103.c</FilePath>
+            </File>
+            <File>
+              <FileName>ks103iic.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Hardware\KS103\ks103iic.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
