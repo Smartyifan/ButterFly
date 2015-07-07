@@ -73,6 +73,7 @@ ErrorStatus HC05Init(HC05Str * HC05){
 	#endif
 	
 	DMAInit(HC05);
+	DMA_SetCurrDataCounter(DMAChannelTx,0);		//TxDMA通道发送数清空，使之能执行第一次HC05Pintf函数
 	
 	while(timeout--){
 		HC05Key = 1;			//KEY=1,进入AT模式
@@ -113,7 +114,7 @@ void USART2_IRQHandler(){
 			for(i = 0;i<HC05.RxLen;i++)HC05.TxData[i] = HC05.RxData[i]; 
 			UARTxDMASend(DMA1_Channel7,HC05.RxLen);
 			while(DMA1_Channel7->CNDTR!=0);					//判断通道7(USART2Tx)传输完成			
-			HC05printf(&HC05,DMA1_Channel7,"Check Success%f\r\n",102.324);
+			HC05printf(&HC05,DMA1_Channel7,"Check Success\r\n");
 		}
 		
 		DMA_SetCurrDataCounter(DMA1_Channel6,HC05RxLen);		//再次设置接收长度
