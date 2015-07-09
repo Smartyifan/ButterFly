@@ -33,24 +33,22 @@
   *@param   None
   *@retval    None
   */
-void SetParam(){
+void SetParam(void){
 	/* HC05 -------------------------------------------------------*/
-	HC05.USARTBASE = USART2;		//使用串口2
+	HC05.USARTBASE = USART1;		//使用串口1
 	
-	HC05.KeyBase = GPIOC_BASE;		//Key引脚
-	HC05.KeyPin = GPIO_Pin_7;
+	HC05.KeyBase = GPIOD_BASE;		//Key引脚
+	HC05.KeyPin = GPIO_Pin_1;
 
-	HC05.LEDBase = GPIOC_BASE;		//LED引脚
-	HC05.LEDPin = GPIO_Pin_8;
-	
-	
+	HC05.LEDBase = GPIOD_BASE;		//LED引脚
+	HC05.LEDPin = GPIO_Pin_0;
 }
 /**
   *@brief   Initial
-  *@param   None;
+  *@param   None
   *@retval  None
   */
-void Initial()
+void Initial(void)
 {
 	SetParam();
 	
@@ -59,8 +57,10 @@ void Initial()
     
 	LEDInit();							//LED初始化
 	if(HC05Init(&HC05) == SUCCESS){		//HC05初始化
-		GLED = 0;
-	}else RLED = 0;
+		HC05printf(&HC05,DMA1_Channel4,"HC05 Connected...\r\n");
+	}else {
+		HC05printf(&HC05,DMA1_Channel4,"HC05 Disconnected...\r\n");
+	}
 }
 
 /**

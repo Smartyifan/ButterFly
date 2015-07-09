@@ -18,8 +18,8 @@
 #include "sys/sys.h"
 
 /* Define --------------------------------------------------------------------*/
-#define GLED PBout(0)// PB0
-#define RLED PCout(0)// PC0	
+#define GLED PEout(10)// PE10
+#define RLED PEout(8)// PE8	
 
 /*extern function-------------------------------------------------------------*/
 extern void LEDInit(void);//≥ı ºªØ

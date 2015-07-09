@@ -93,32 +93,27 @@ ErrorStatus HC05Init(HC05Str * HC05){
 }
 
 /**
-  *@brief   USART2_IRQHandler	USART2中断服务函数
+  *@brief   USART1_IRQHandler	USART1中断服务函数
   *@param   None
   *@retval  None
   *@brief   进入中断后关闭DMA传输，如需再次传输，需要在数据处理完成后再次打开
   */
-void USART2_IRQHandler(){
+void USART1_IRQHandler(){
 	u32 reg = 0;
 	u8 i;
 	HC05.RxLen = 0;
-	if(USART_GetITStatus(USART2, USART_IT_IDLE) != RESET) {	//进入空闲中断
-		DMA_Cmd(DMA1_Channel6,DISABLE); 					//关闭串口2的接收DMA通道
-		reg = USART2->SR;
-		reg = USART2->DR;		//这两条语句用于清除IDLE中断标志
+	if(USART_GetITStatus(USART1, USART_IT_IDLE) != RESET) {	//进入空闲中断
+		DMA_Cmd(DMA1_Channel5,DISABLE); 					//关闭串口1的接收DMA通道
+		reg = USART1->SR;
+		reg = USART1->DR;		//这两条语句用于清除IDLE中断标志
 		
-		HC05.RxLen = HC05RxLen - DMA_GetCurrDataCounter(DMA1_Channel6);			//计算接收到的长度
+		HC05.RxLen = HC05RxLen - DMA_GetCurrDataCounter(DMA1_Channel5);			//计算接收到的长度
 		
-		if(HC05.RxLen == 4 && HC05.RxData[0] == 'O' && HC05.RxData[1] == 'K'){	//接收到'OK\r\n'
-			HC05.Checked = SUCCESS;
-			for(i = 0;i<HC05.RxLen;i++)HC05.TxData[i] = HC05.RxData[i]; 
-			UARTxDMASend(DMA1_Channel7,HC05.RxLen);
-			while(DMA1_Channel7->CNDTR!=0);					//判断通道7(USART2Tx)传输完成			
-			HC05printf(&HC05,DMA1_Channel7,"Check Success\r\n");
-		}
+		if(HC05.RxLen == 4 && HC05.RxData[0] == 'O' && HC05.RxData[1] == 'K')	//接收到'OK\r\n'
+			HC05.Checked = SUCCESS;												//检测到HC-05	
 		
-		DMA_SetCurrDataCounter(DMA1_Channel6,HC05RxLen);		//再次设置接收长度
-		DMA_Cmd(DMA1_Channel6,ENABLE); 							//使能串口2的接收DMA通道
+		DMA_SetCurrDataCounter(DMA1_Channel5,HC05RxLen);		//再次设置接收长度
+		DMA_Cmd(DMA1_Channel5,ENABLE); 							//使能串口5的接收DMA通道
 	} 
 }
 
@@ -137,20 +132,7 @@ void HC05printf(HC05Str * HC05,DMA_Channel_TypeDef*DMA_CHx,char* fmt,...){
 	while(DMA_CHx->CNDTR!=0);	//等待通道7传输完成   
 	UARTxDMASend(DMA_CHx,strlen((const char*)HC05->TxData)); 	//通过dma发送出去
 }
-/**
-  *@brief   UARTxSendString		//发送数组函数
-  *@param   HC05Str * HC05		//指向HC05的指针
-  * 		DMA_Channel_TypeDef*DMA_CHx	//DMA通道号
-  *			char * string		//要发送的字符
-  *@retval    None
-  */
-void UARTxSendString(HC05Str * HC05,DMA_Channel_TypeDef*DMA_CHx,char * string){
-	u16 Len=0;
 
-	while(((HC05->TxData[Len]) = (u8)*(string+Len)) != '\0')Len++;	//将字符串赋给数组TxData
-	
-	UARTxDMASend(DMA_CHx,Len);		//启动一次DMA传输
-}
 
 /**
   *@brief   UARTxDMASend		启动一次串口的DMA传输

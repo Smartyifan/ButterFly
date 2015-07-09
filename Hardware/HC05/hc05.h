@@ -24,8 +24,8 @@
 #define HC05TxLen	50		//HC05Tx DMA 长度
 #define HC05RxLen	50		//HC05Rx DMA 长度
 
-#define HC05Key		PCout(7)	//蓝牙控制KEY信号
-#define HC05LED		PCin(8)		//蓝牙连接状态信号
+#define HC05Key		PDout(1)	//蓝牙控制KEY信号
+#define HC05LED		PDin(0)		//蓝牙连接状态信号
 /* TypeDefine ----------------------------------------------------------------*/
 typedef struct HC05{
 	USART_TypeDef * USARTBASE;
