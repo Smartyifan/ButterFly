@@ -122,3 +122,5 @@ while(DMA1_Channel7->CNDTR!=0);
 **July 7, 2015 5:01 PM**  
 修复一个BUG，CNDTR寄存器复位值为0x0032，该BUG使第一次执行HC05Printf时陷入死循环。  
 在DMAInit()函数后用软件将该寄存器的值设置为0。
+**July 9, 2015 5:54 PM**  
+与KS103通过IIC通讯，需要接上拉电阻

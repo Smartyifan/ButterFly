@@ -22,6 +22,8 @@
 
 #include "HC05/hc05.h"
 #include "LED/led.h"
+#include "KS103/ks103.h"
+#include "UpperMachine/upmac.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -42,6 +44,15 @@ void SetParam(void){
 
 	HC05.LEDBase = GPIOD_BASE;		//LED引脚
 	HC05.LEDPin = GPIO_Pin_0;
+	
+	/* KS103 ------------------------------------------------------*/
+	KS103.I2C.ClkGPIOBase = GPIOF_BASE;
+	KS103.I2C.ClkPin = GPIO_Pin_1;
+	
+	KS103.I2C.SDAGPIOBase = GPIOF_BASE;
+	KS103.I2C.SDAPin = GPIO_Pin_0;
+	
+	KS103.SlaveAddress = SlaveAddress1;		//设备地址
 }
 /**
   *@brief   Initial
@@ -56,11 +67,20 @@ void Initial(void)
 	delay_init();
     
 	LEDInit();							//LED初始化
-	if(HC05Init(&HC05) == SUCCESS){		//HC05初始化
-		HC05printf(&HC05,DMA1_Channel4,"HC05 Connected...\r\n");
+	if(HC05Init(&HC05) == SUCCESS){		//HC05初始化，并检测模块是否存在
+		HC05printf(&HC05,"HC05 Connected...\r\n");
 	}else {
-		HC05printf(&HC05,DMA1_Channel4,"HC05 Disconnected...\r\n");
+		HC05printf(&HC05,"HC05 Disconnected...\r\n");
 	}
+	
+	delay_ms(20);
+	
+	if(KS103Init(&KS103) == SUCCESS)			//KS103初始化，并检测KS103模块
+		HC05printf(&HC05,"KS103 Connected...\r\n");
+	else
+		HC05printf(&HC05,"KS103 Disonnected...\r\n");
+	delay_ms(20);
+	
 }
 
 /**
@@ -73,7 +93,12 @@ int main(void)
     Initial();
     while(1)
     {
-        
+		Read_KS10X_Data(&KS103,0xb4);
+		while(KS103.detected != SUCCESS);
+
+// 		HC05printf(&HC05,"Height = %d mm\r\n",KS103.Height);
+		SimplePlotSend(&HC05,(float)KS103.Height,0,0,0);
+		delay_ms(100);
     }
 }
 

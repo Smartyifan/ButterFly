@@ -2,16 +2,19 @@
   ******************************************************************************
   * @file    	E:\ButterFly\Hardware\HC05\hc05.c
   * @author  	贾一帆（借鉴正点原子）
-  * @version	V0.0
+  * @version	V0.3
   * @date  		2015-07-05 15:59:29
   * @brief   	HC-05蓝牙串口模块
   ******************************************************************************
   * @attention
-  *	2015-07-06 00:08:45
+  *	V0.0  2015-07-06 00:08:45 
   * 只能使用USART1~3
   * 串口接收中断的抢占优先级为1，子优先级为0，可以在RxNVICInit函数中修改
   * 在头文件中设置HC05TxDMA和HC05RxDMA的值决定是否用到DMA传输（默认使用DMA）
   * 在头文件中设置DMA发送和接收内存的长度
+  * V0.3  2015-07-09 20:36:27 
+  * 在HC05Str结构体中，添加了DMA接收与发送通道号，并在初始化函数中对其赋值，
+  * 以便HC05Printf函数的使用
   ******************************************************************************
   */  
 
@@ -33,9 +36,9 @@
 /* Private variables ---------------------------------------------------------*/
 HC05Str HC05;		//HC05结构体	
 /* Private function prototypes -----------------------------------------------*/
-void HC05printf(HC05Str * HC05,DMA_Channel_TypeDef*DMA_CHx,char* fmt,...);	//基于DMA传输的printf
+void HC05printf(HC05Str * HC05,char* fmt,...);				//基于DMA传输的printf
 void RxDataHandler(u8 * Data,u16 Len);						//接收数据处理函数
-void UARTxDMASend(DMA_Channel_TypeDef*DMA_CHx,u16 Len);		//启动一次串口的DMA传输
+void UARTxDMASend(HC05Str * HC05,u16 Len);					//启动一次串口的DMA传输
 void UartInit(USART_TypeDef * USARTBASE,u32 BaudRate);		//串口初始化
 void DMAInit(HC05Str * HC05);								//DMA初始化
 void RxNVICInit(USART_TypeDef * USARTBASE);					//NVIC初始化
@@ -48,16 +51,18 @@ void GPIOInit(HC05Str * HC05);								//GPIO初始化
   */
 ErrorStatus HC05Init(HC05Str * HC05){
 	u8 timeout = 10,wait;		//检查超时
-	DMA_Channel_TypeDef * DMAChannelTx;
 	
 	HC05->Checked = ERROR;		//检查HC05模块成功标志
-	/* 确认参数 ---------------------------------------------------------------------------------------------*/
+	/* 确认DMA通道号 ---------------------------------------------------------------------------------------------*/
 	if(HC05->USARTBASE == USART1){
-		DMAChannelTx = DMA1_Channel4;	//Tx通道 
+		HC05->DMAChannelTx = DMA1_Channel4;	//Tx通道 
+		HC05->DMAChannelRx = DMA1_Channel5;	//Rx通道
 	}else if(HC05->USARTBASE == USART2){
-		DMAChannelTx = DMA1_Channel7;	//Tx通道 
+		HC05->DMAChannelTx = DMA1_Channel7;	//Tx通道 
+		HC05->DMAChannelRx = DMA1_Channel6;	//Rx通道
 	}else if(HC05->USARTBASE == USART3){
-		DMAChannelTx = DMA1_Channel2;	//Tx通道 
+		HC05->DMAChannelTx = DMA1_Channel2;	//Tx通道 
+		HC05->DMAChannelRx = DMA1_Channel3;	//Rx通道
 	}
 
 	
@@ -73,13 +78,13 @@ ErrorStatus HC05Init(HC05Str * HC05){
 	#endif
 	
 	DMAInit(HC05);
-	DMA_SetCurrDataCounter(DMAChannelTx,0);		//TxDMA通道发送数清空，使之能执行第一次HC05Pintf函数
+	DMA_SetCurrDataCounter(HC05->DMAChannelTx,0);		//TxDMA通道发送数清空，使之能执行第一次HC05Pintf函数
 	
 	while(timeout--){
 		HC05Key = 1;			//KEY=1,进入AT模式
 		delay_ms(10);
 		
-		HC05printf(HC05,DMAChannelTx,"AT\r\n");
+		HC05printf(HC05,"AT\r\n");
 		HC05Key = 0;			//KEY = 0,退出AT模式
 		
 		for(wait = 0;wait < 10;wait ++){			//等待50ms接收HC05模块的回应
@@ -100,7 +105,6 @@ ErrorStatus HC05Init(HC05Str * HC05){
   */
 void USART1_IRQHandler(){
 	u32 reg = 0;
-	u8 i;
 	HC05.RxLen = 0;
 	if(USART_GetITStatus(USART1, USART_IT_IDLE) != RESET) {	//进入空闲中断
 		DMA_Cmd(DMA1_Channel5,DISABLE); 					//关闭串口1的接收DMA通道
@@ -123,14 +127,13 @@ void USART1_IRQHandler(){
   *@param   None
   *@retval    None
   */
-void HC05printf(HC05Str * HC05,DMA_Channel_TypeDef*DMA_CHx,char* fmt,...){
+void HC05printf(HC05Str * HC05,char* fmt,...){
 	va_list ap;
 	va_start(ap,fmt);
 	
 	vsprintf((char*)HC05->TxData,fmt,ap);
 	va_end(ap);
-	while(DMA_CHx->CNDTR!=0);	//等待通道7传输完成   
-	UARTxDMASend(DMA_CHx,strlen((const char*)HC05->TxData)); 	//通过dma发送出去
+	UARTxDMASend(HC05,strlen((const char*)HC05->TxData)); 	//通过dma发送出去
 }
 
 
@@ -140,10 +143,14 @@ void HC05printf(HC05Str * HC05,DMA_Channel_TypeDef*DMA_CHx,char* fmt,...){
   * 		u16 Len							//数据长度
   *@retval    None
   */
-void UARTxDMASend(DMA_Channel_TypeDef*DMA_CHx,u16 Len){
-	DMA_CHx->CCR&=~(1<<0);      //关闭DMA传输 
-	DMA_CHx->CNDTR=Len;    		//DMA,传输数据量 
-	DMA_CHx->CCR|=1<<0;         //开启DMA传输
+void UARTxDMASend(HC05Str * HC05,u16 Len){
+	
+	while(HC05->DMAChannelTx->CNDTR!=0);		//等待Tx通道传输完成   
+	while((HC05->USARTBASE->SR&0X40)==0);	//等待串口发送完成
+
+	HC05->DMAChannelTx->CCR&=~(1<<0);      //关闭DMA传输 
+	HC05->DMAChannelTx->CNDTR=Len;    		//DMA,传输数据量 
+	HC05->DMAChannelTx->CCR|=1<<0;         //开启DMA传输
 }
 
 
@@ -177,29 +184,14 @@ void GPIOInit(HC05Str * HC05){
   *@retval    None
   */
 void DMAInit(HC05Str * HC05){
-	DMA_Channel_TypeDef * DMAChannelTx;
-	DMA_Channel_TypeDef * DMAChannelRx;
-	
 	DMA_InitTypeDef DMA_InitStructure;
 	
-	/* 确认参数 ---------------------------------------------------------------------------------------------*/
-	if(HC05->USARTBASE == USART1){
-		DMAChannelTx = DMA1_Channel4;	//Tx通道 
-		DMAChannelRx = DMA1_Channel5;	//Rx通道
-	}else if(HC05->USARTBASE == USART2){
-		DMAChannelTx = DMA1_Channel7;	//Tx通道 
-		DMAChannelRx = DMA1_Channel6;	//Rx通道
-	}else if(HC05->USARTBASE == USART3){
-		DMAChannelTx = DMA1_Channel2;	//Tx通道 
-		DMAChannelRx = DMA1_Channel3;	//Rx通道
-	}
-
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);	//使能DMA传输
 	delay_us(5);
 
 	#if HC05TxDMA								//若使能TxDMA传输	
 	/* UARTx  Tx DMA通道初始化 ---------------------------------------------------------------------------------*/
-    DMA_DeInit(DMAChannelTx);   										//将DMA的通道x寄存器重设为缺省值
+    DMA_DeInit(HC05->DMAChannelTx);   										//将DMA的通道x寄存器重设为缺省值
 	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&(HC05->USARTBASE)->DR);  //DMA外设USART->DR基地址
 	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)&HC05->TxData;  		//DMA内存基地址
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST; 			 		//数据传输方向，从内存读取发送到外设
@@ -211,14 +203,14 @@ void DMAInit(HC05Str * HC05){
 	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  						//工作在正常缓存模式
 	DMA_InitStructure.DMA_Priority = DMA_Priority_Medium; 				//DMA通道 x拥有中优先级 
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  						//DMA通道x没有设置为内存到内存传输
-	DMA_Init(DMAChannelTx, &DMA_InitStructure);  						//根据DMA_InitStruct中指定的参数初始化DMA的通道USARTx_Tx_DMA_Channex所标识的寄存器
+	DMA_Init(HC05->DMAChannelTx, &DMA_InitStructure);  						//根据DMA_InitStruct中指定的参数初始化DMA的通道USARTx_Tx_DMA_Channex所标识的寄存器
 	
 	
 	#endif
 	
 	#if HC05RxDMA							//若使能RxDMA传输	
 	/* UARTx  Rx DMA通道初始化 ---------------------------------------------------------------------------------*/
-	DMA_DeInit(DMAChannelRx);   										//将DMA的通道x寄存器重设为缺省值
+	DMA_DeInit(HC05->DMAChannelRx);   										//将DMA的通道x寄存器重设为缺省值
 	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&(HC05->USARTBASE)->DR);  //DMA外设USART->DR基地址
 	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)&HC05->RxData;  		//DMA内存基地址  RxData数组
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC; 			 		//数据传输方向，从外设读取并发送到内存
@@ -230,7 +222,7 @@ void DMAInit(HC05Str * HC05){
 	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  						//工作在正常缓存模式
 	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh; 			//DMA通道 x拥有超高优先级 
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  						//DMA通道x没有设置为内存到内存传输
-	DMA_Init(DMAChannelRx, &DMA_InitStructure);  						//根据DMA_InitStruct中指定的参数初始化DMA的通道USARTx_Rx_DMA_Channex所标识的寄存器
+	DMA_Init(HC05->DMAChannelRx, &DMA_InitStructure);  						//根据DMA_InitStruct中指定的参数初始化DMA的通道USARTx_Rx_DMA_Channex所标识的寄存器
 	#endif
 }
 

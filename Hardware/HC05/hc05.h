@@ -35,6 +35,9 @@ typedef struct HC05{
 	u16 KeyPin;
 	u16 LEDPin;
 	
+	DMA_Channel_TypeDef * DMAChannelTx;		//DMA接收通道号
+	DMA_Channel_TypeDef * DMAChannelRx;		//DMA发送通道号
+
 	ErrorStatus TxSuccess;		//DMA传输完成标志
 	ErrorStatus Checked;		//检查标志
 	
@@ -48,7 +51,7 @@ typedef struct HC05{
 extern HC05Str HC05;		//HC05结构体	
 /* extern function------------------------------------------------------------*/
 extern ErrorStatus HC05Init(HC05Str * HC05);						//初始化HC05
-extern void UARTxDMASend(DMA_Channel_TypeDef*DMA_CHx,u16 Len);		//通过DMA发送一定长度的数组
-extern void HC05printf(HC05Str * HC05,DMA_Channel_TypeDef*DMA_CHx,char* fmt,...);	//基于DMA传输的printf
+extern void UARTxDMASend(HC05Str * HC05,u16 Len);		//通过DMA发送一定长度的数组
+extern void HC05printf(HC05Str * HC05,char* fmt,...);	//基于DMA传输的printf
 #endif
 /******************* (C) COPYRIGHT 2014 STMicroelectronics *****END OF FILE****/
