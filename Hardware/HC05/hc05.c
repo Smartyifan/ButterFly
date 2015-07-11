@@ -39,10 +39,10 @@ HC05Str HC05;		//HC05结构体
 void HC05printf(HC05Str * HC05,char* fmt,...);				//基于DMA传输的printf
 void RxDataHandler(u8 * Data,u16 Len);						//接收数据处理函数
 void UARTxDMASend(HC05Str * HC05,u16 Len);					//启动一次串口的DMA传输
-void UartInit(USART_TypeDef * USARTBASE,u32 BaudRate);		//串口初始化
-void DMAInit(HC05Str * HC05);								//DMA初始化
-void RxNVICInit(USART_TypeDef * USARTBASE);					//NVIC初始化
-void GPIOInit(HC05Str * HC05);								//GPIO初始化
+void HC05UartInit(USART_TypeDef * USARTBASE,u32 BaudRate);		//串口初始化
+void HC05DMAInit(HC05Str * HC05);								//DMA初始化
+void HC05RxNVICInit(USART_TypeDef * USARTBASE);					//NVIC初始化
+void HC05GPIOInit(HC05Str * HC05);								//GPIO初始化
 /* Private functions ---------------------------------------------------------*/
 /**
   *@brief   HC05Init
@@ -66,8 +66,8 @@ ErrorStatus HC05Init(HC05Str * HC05){
 	}
 
 	
-	GPIOInit(HC05);
-	UartInit(HC05->USARTBASE,9600);		//初始化中断
+	HC05GPIOInit(HC05);
+	HC05UartInit(HC05->USARTBASE,9600);		//初始化中断
 	
 	/* DMA初始化 ---------------------------------------------------*/
 	#if HC05TxDMA	//若使能TxDMA传输	
@@ -77,7 +77,7 @@ ErrorStatus HC05Init(HC05Str * HC05){
 	USART_DMACmd(HC05->USARTBASE,USART_DMAReq_Rx,ENABLE);
 	#endif
 	
-	DMAInit(HC05);
+	HC05DMAInit(HC05);
 	DMA_SetCurrDataCounter(HC05->DMAChannelTx,0);		//TxDMA通道发送数清空，使之能执行第一次HC05Pintf函数
 	
 	while(timeout--){
@@ -148,9 +148,9 @@ void UARTxDMASend(HC05Str * HC05,u16 Len){
 	while(HC05->DMAChannelTx->CNDTR!=0);		//等待Tx通道传输完成   
 	while((HC05->USARTBASE->SR&0X40)==0);	//等待串口发送完成
 
-	HC05->DMAChannelTx->CCR&=~(1<<0);      //关闭DMA传输 
+	HC05->DMAChannelTx->CCR&=~1;      //关闭DMA传输 
 	HC05->DMAChannelTx->CNDTR=Len;    		//DMA,传输数据量 
-	HC05->DMAChannelTx->CCR|=1<<0;         //开启DMA传输
+	HC05->DMAChannelTx->CCR|=1;         //开启DMA传输
 }
 
 
@@ -160,7 +160,7 @@ void UARTxDMASend(HC05Str * HC05,u16 Len){
   *@param   None
   *@retval    None
   */
-void GPIOInit(HC05Str * HC05){
+void HC05GPIOInit(HC05Str * HC05){
 	GPIO_InitTypeDef GPIO_InitStructure;
 	
 	/* 启动时钟 ------------------------------------------------------------------------------*/
@@ -183,7 +183,7 @@ void GPIOInit(HC05Str * HC05){
   *@param   None
   *@retval    None
   */
-void DMAInit(HC05Str * HC05){
+void HC05DMAInit(HC05Str * HC05){
 	DMA_InitTypeDef DMA_InitStructure;
 	
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);	//使能DMA传输
@@ -191,7 +191,7 @@ void DMAInit(HC05Str * HC05){
 
 	#if HC05TxDMA								//若使能TxDMA传输	
 	/* UARTx  Tx DMA通道初始化 ---------------------------------------------------------------------------------*/
-    DMA_DeInit(HC05->DMAChannelTx);   										//将DMA的通道x寄存器重设为缺省值
+    DMA_DeInit(HC05->DMAChannelTx);   									//将DMA的通道x寄存器重设为缺省值
 	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&(HC05->USARTBASE)->DR);  //DMA外设USART->DR基地址
 	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)&HC05->TxData;  		//DMA内存基地址
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST; 			 		//数据传输方向，从内存读取发送到外设
@@ -201,20 +201,20 @@ void DMAInit(HC05Str * HC05){
 	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  //数据宽度为8位
 	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte; 	//数据宽度为8位
 	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  						//工作在正常缓存模式
-	DMA_InitStructure.DMA_Priority = DMA_Priority_Medium; 				//DMA通道 x拥有中优先级 
+	DMA_InitStructure.DMA_Priority = DMA_Priority_High; 				//DMA通道 x拥有中优先级 
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  						//DMA通道x没有设置为内存到内存传输
-	DMA_Init(HC05->DMAChannelTx, &DMA_InitStructure);  						//根据DMA_InitStruct中指定的参数初始化DMA的通道USARTx_Tx_DMA_Channex所标识的寄存器
+	DMA_Init(HC05->DMAChannelTx, &DMA_InitStructure);  					//根据DMA_InitStruct中指定的参数初始化DMA的通道USARTx_Tx_DMA_Channex所标识的寄存器
 	
 	
 	#endif
 	
 	#if HC05RxDMA							//若使能RxDMA传输	
 	/* UARTx  Rx DMA通道初始化 ---------------------------------------------------------------------------------*/
-	DMA_DeInit(HC05->DMAChannelRx);   										//将DMA的通道x寄存器重设为缺省值
+	DMA_DeInit(HC05->DMAChannelRx);   									//将DMA的通道x寄存器重设为缺省值
 	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&(HC05->USARTBASE)->DR);  //DMA外设USART->DR基地址
 	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)&HC05->RxData;  		//DMA内存基地址  RxData数组
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC; 			 		//数据传输方向，从外设读取并发送到内存
-	DMA_InitStructure.DMA_BufferSize = HC05RxLen;  							//DMA通道的DMA缓存的大小
+	DMA_InitStructure.DMA_BufferSize = HC05RxLen;  						//DMA通道的DMA缓存的大小
 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  	//外设地址寄存器不变
 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  			//内存地址寄存器递增
 	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  //数据宽度为8位
@@ -222,7 +222,7 @@ void DMAInit(HC05Str * HC05){
 	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  						//工作在正常缓存模式
 	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh; 			//DMA通道 x拥有超高优先级 
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  						//DMA通道x没有设置为内存到内存传输
-	DMA_Init(HC05->DMAChannelRx, &DMA_InitStructure);  						//根据DMA_InitStruct中指定的参数初始化DMA的通道USARTx_Rx_DMA_Channex所标识的寄存器
+	DMA_Init(HC05->DMAChannelRx, &DMA_InitStructure);  					//根据DMA_InitStruct中指定的参数初始化DMA的通道USARTx_Rx_DMA_Channex所标识的寄存器
 	#endif
 }
 
@@ -232,7 +232,7 @@ void DMAInit(HC05Str * HC05){
   *@param   USART_TypeDef * USARTBASE	//串口号
   *@retval    None
   */
-void RxNVICInit(USART_TypeDef * USARTBASE){
+void HC05RxNVICInit(USART_TypeDef * USARTBASE){
 	IRQn_Type IRQChannel;
 	NVIC_InitTypeDef NVIC_InitStructure;
 
@@ -261,7 +261,7 @@ void RxNVICInit(USART_TypeDef * USARTBASE){
   *			u32 BaudRate	波特率
   *@retval    None
   */
-void UartInit(USART_TypeDef * USARTBASE,u32 BaudRate){
+void HC05UartInit(USART_TypeDef * USARTBASE,u32 BaudRate){
 	u16 GPIO_Pin_Tx;			//Tx引脚
 	u16 GPIO_Pin_Rx;			//Rx引脚
 	GPIO_TypeDef * GPIOBase;	//GPIOBase
@@ -330,7 +330,7 @@ void UartInit(USART_TypeDef * USARTBASE,u32 BaudRate){
 	
 	#if HC05RxDMA
 	/* NVIC 配置 ----------------------------------------------------------*/
-	RxNVICInit(USARTBASE);
+	HC05RxNVICInit(USARTBASE);
 	#endif
 	
 	USART_ClearFlag(USARTBASE, USART_FLAG_TC);						//清除发送成功标志

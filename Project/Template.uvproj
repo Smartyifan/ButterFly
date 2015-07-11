@@ -456,6 +456,11 @@
               <FileType>1</FileType>
               <FilePath>..\Hardware\UpperMachine\upmac.c</FilePath>
             </File>
+            <File>
+              <FileName>jy901.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Hardware\JY901\jy901.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

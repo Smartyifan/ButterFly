@@ -24,6 +24,7 @@
 #include "LED/led.h"
 #include "KS103/ks103.h"
 #include "UpperMachine/upmac.h"
+#include "JY901/jy901.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -53,6 +54,9 @@ void SetParam(void){
 	KS103.I2C.SDAPin = GPIO_Pin_0;
 	
 	KS103.SlaveAddress = SlaveAddress1;		//设备地址
+	
+	/* JY901 ------------------------------------------------------*/
+	JY901.USARTBASE = USART2;		//使用串口2
 }
 /**
   *@brief   Initial
@@ -81,6 +85,7 @@ void Initial(void)
 		HC05printf(&HC05,"KS103 Disonnected...\r\n");
 	delay_ms(20);
 	
+	JY901Init(&JY901);			//九轴姿态传感模块 JY-901 初始化
 }
 
 /**
@@ -93,12 +98,12 @@ int main(void)
     Initial();
     while(1)
     {
-		Read_KS10X_Data(&KS103,0xb4);
-		while(KS103.detected != SUCCESS);
+// 		Read_KS10X_Data(&KS103,0xb4);
+// 		while(KS103.detected != SUCCESS);
 
-// 		HC05printf(&HC05,"Height = %d mm\r\n",KS103.Height);
-		SimplePlotSend(&HC05,(float)KS103.Height,0,0,0);		//画图
-		delay_ms(100);
+// // 		HC05printf(&HC05,"Height = %d mm\r\n",KS103.Height);
+// 		SimplePlotSend(&HC05,(float)KS103.Height,0,0,0);		//画图
+// 		delay_ms(100);
     }
 }
 
