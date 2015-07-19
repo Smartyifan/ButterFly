@@ -77,17 +77,15 @@ void USART2_IRQHandler(void){
 	static u8 pFH = 0;		//数组下标
 	
 	if(USART_GetITStatus(USART2, USART_IT_RXNE) != RESET){	//接收到数据
-		FH[pFH++] = (unsigned char)JY901.USARTBASE->DR;
+		FH[pFH] = (unsigned char)JY901.USARTBASE->DR;
 		
-		if(FH[0] != 0x55){			//若第一个数不是0x55，重新接收
-			FH[1] = 0x00;
-			pFH = 0;
-		}else if(FH[1] == 0x50){
-			USART_ITConfig(JY901.USARTBASE,USART_IT_RXNE,DISABLE);	//关闭串口接收中断
-			UARTRxDMARec(&JY901);									//开启一次DMA传输
-			
-			FH[0] = 0x00;		//清空数组
-			FH[1] = 0x00;
+		if(pFH == 0 && FH[0] == 0x55){		//检查第一个字节	
+			pFH++;
+		}else if(pFH == 1){					//检查第二个字节
+			if(FH[1]==0x51){
+				USART_ITConfig(JY901.USARTBASE,USART_IT_RXNE,DISABLE);	//关闭串口接收中断
+				UARTRxDMARec(&JY901);									//开启一次DMA传输
+			}
 			pFH = 0;
 		}
 	}	
@@ -97,19 +95,30 @@ void DMA1_Channel6_IRQHandler(){
 	
 	if(DMA_GetITStatus(DMA1_IT_TC6) == SET){
 		
+		/* Use JY-901 ----------------------------------------------------------------------*/
 		memcpy(&(JY901.Time),&JY901.RxData[1],8);		//时间
 		memcpy(&(JY901.Ax),&JY901.RxData[12],6);		//加速度
 		memcpy(&(JY901.Wx),&JY901.RxData[23],6);		//角速度	
 		memcpy(&(JY901.Ang),&JY901.RxData[34],6);		//角度
 		memcpy(&(JY901.Press),&JY901.RxData[45],8);		//气压与高度
 		
-		/* 显示时间 --------------------------------------------------------------------*/
+		/* Use MPU6050 ---------------------------------------------------------------------*/
+// 		memcpy(&(JY901.Ax),&JY901.RxData[1],6);		//加速度
+// 		memcpy(&(JY901.Wx),&JY901.RxData[12],6);	//角速度	
+// 		memcpy(&(JY901.Ang),&JY901.RxData[23],6);	//角度
+
+		
+		/* 显示时间 ------------------------------------------------------------------------*/
 // 		HC05printf(&HC05,"Time %d-%d-%d %d:%d:%d.%d\r\n",JY901.Time.Year,JY901.Time.Month,JY901.Time.Day,JY901.Time.Hour,JY901.Time.Minute,JY901.Time.Second,JY901.Time.MiliSecond);
+
+		/* 显示角度 ------------------------------------------------------------------------*/
 		HC05printf(&HC05,"Ang\r\nRow=%f  Pitch=%f  Yaw=%f\r\n",(float)JY901.Ang.Rol/32768*180,(float)JY901.Ang.Pitch/32768*180,(float)JY901.Ang.Yaw/32768*180);
 		
 		
-		USART_ITConfig(JY901.USARTBASE,USART_IT_RXNE,ENABLE);	//打开串口接收中断
 		
+		/* 后续处理 ------------------------------------------------------------------------*/
+		USART_ITConfig(JY901.USARTBASE,USART_IT_RXNE,ENABLE);	//打开串口接收中断
+
 		JY901.DMAChannelRx->CCR&=~1;      		//关闭DMA传输 
 
 		DMA_ClearITPendingBit(DMA1_IT_GL6);

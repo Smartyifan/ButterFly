@@ -101,7 +101,7 @@ int main(void)
 // 		Read_KS10X_Data(&KS103,0xb4);
 // 		while(KS103.detected != SUCCESS);
 
-// // 		HC05printf(&HC05,"Height = %d mm\r\n",KS103.Height);
+// 		HC05printf(&HC05,"Height = %d mm\r\n",KS103.Height);
 // 		SimplePlotSend(&HC05,(float)KS103.Height,0,0,0);		//»­Í¼
 // 		delay_ms(100);
     }
