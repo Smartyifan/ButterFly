@@ -67,7 +67,7 @@ ErrorStatus HC05Init(HC05Str * HC05){
 
 	
 	HC05GPIOInit(HC05);
-	HC05UartInit(HC05->USARTBASE,9600);		//初始化中断
+	HC05UartInit(HC05->USARTBASE,230400);		//初始化中断
 	
 	/* DMA初始化 ---------------------------------------------------*/
 	#if HC05TxDMA	//若使能TxDMA传输	

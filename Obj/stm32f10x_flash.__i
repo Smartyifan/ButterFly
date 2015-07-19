@@ -1,0 +1,5 @@
+-c --cpu Cortex-M3 -g -O0 --apcs=interwork -I..\Core -I..\Library\inc -I..\User -I..\SYSTEM -I..\Hardware 
+-I D:\Keil\ARM\RV31\INC 
+-I D:\Keil\ARM\CMSIS\Include 
+-I D:\Keil\ARM\Inc\ST\STM32F10x 
+-DUSE_STDPERIPH_DRIVER -DSTM32F10X_HD -o "..\Obj\stm32f10x_flash.o" --omf_browse "..\Obj\stm32f10x_flash.crf" --depend "..\Obj\stm32f10x_flash.d" "..\Library\src\stm32f10x_flash.c"
